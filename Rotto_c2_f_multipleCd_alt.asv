@@ -1,0 +1,190 @@
+load ('C:\Users\Neryneto\OneDrive - UWA\Documents\PhD\chapters\Rottnest\Instruments_data\1.Part_1\RBRs\RBR_with_Cd')
+load('C:\Users\Neryneto\OneDrive - UWA\Documents\PhD\chapters\Rottnest\Instruments_data\1.Part_1\RBRs\Rottnest_lev.mat')
+load ('C:\Users\Neryneto\OneDrive - UWA\Documents\PhD\chapters\Rottnest\Instruments_data\1.Part_1\Sawhorse\Sawhorse_instruments.mat')
+%%
+% b=0.014;u=RBR.ST9.ubr_LWT;
+% v=9.35.*10^(-7);
+% Re = b.*u./v;
+% flag_Re=(Re>1500);
+rho=1026;
+% flag_swell=RBR.ST9.ubr_LWT>0.1;
+% flag=and(flag_Re,flag_swell);
+for i=1:length(AQP11266.meanDepth_15min)
+    Wavek =  wavek(AQP11266.freq_urms,AQP11266.meanDepth_15min(i)+1.09);  
+    phij  =    (cosh (Wavek.*AQP11266.z(18)))./(cosh (Wavek.*AQP11266.z(32)));
+    alphaj (:,i) = sqrt((phij.^2).*(sqrt(2*(AQP11266.Suu_ADP(i*257-256:i*257,32)+AQP11266.Svv_ADP(i*257-256:i*257,32))*(AQP11266.freq_urms(2)-AQP11266.freq_urms(1))))./...
+        (sqrt(2*(AQP11266.Suu_ADP(i*257-256:i*257,18)+AQP11266.Svv_ADP(i*257-256:i*257,18))*(AQP11266.freq_urms(2)-AQP11266.freq_urms(1)))));
+
+    alphar (i) = sqrt(sqrt(2*(nansum(phij.^2.*(AQP11266.Suu_ADP(i*257-256:i*257,32)+AQP11266.Svv_ADP(i*257-256:i*257,32))*(AQP11266.freq_urms(2)-AQP11266.freq_urms(1)))))./...
+        (sqrt(2*(nansum(AQP11266.Suu_ADP(i*257-256:i*257,18)+AQP11266.Svv_ADP(i*257-256:i*257,18))*(AQP11266.freq_urms(2)-AQP11266.freq_urms(1))))));
+end
+alphar(alphar>1 |alphar<0.4)=nan;
+alphar=movmean(alphar,5,'omitnan');
+
+Arms_aquadopp_tm02 = AQP11266.ubr(:,1).*AQP11266.Wave.Tm02_ADP'./(2*pi);Arms_aquadopp_tm02(Arms_aquadopp_tm02>0.5)=nan;
+alphar_estim=(Arms_aquadopp_tm02*(-2.191)+0.8246);alphar_estim(alphar_estim>0.7)=nan;
+% plot(alphar_interp)
+% hold on
+% plot(alphar)
+% plot(AQP11266.time_15min,    AQP11266.Wave.Tm01_ADP)
+% plot(RBR.ST9.time_wave, RBR.ST9.Tm01)
+% plot(RBR.ST9.time_wave, RBR.ST9.Hm0)
+%%
+flag_time1 = AQP11266.time_15min > 737500.865973262 & AQP11266.time_15min < 737502.278119836;
+flag_time2 = AQP11266.time_15min > 737506.125001883 & AQP11266.time_15min < 737508.511042647;
+flag_time3 = AQP11266.time_15min > 737511.676198762 & AQP11266.time_15min < 737513.307471529;
+flag_time_aux=or(flag_time1,flag_time2);
+flag_time_total_aqd=or(flag_time3,flag_time_aux);
+Arms_infty = nanmean(AQP11266.ubr(:,18),2).*AQP11266.Wave.Tm01_ADP'/(2*pi);
+arms_flag=Arms_infty(flag_time_total_aqd);alphar_flag=alphar(flag_time_total_aqd);
+alphar_interp=interp1(AQP11266.time_15min,alphar_estim,RBR.ST2.time_wave);
+% alphar_interp2=interp1(AQP11266.time_15min,alphar,RBR.ST2.time_wave);
+
+% alphaj_interp=interp1(AQP11266.time_15min,alphar,RBR.ST2.time_wave);
+% plot(AQP11266.time_15min,alphar)
+% hold on
+% plot(RBR.ST2.time_wave,alphar_interp)
+[~,min_cutoff] = min(abs(RBR.ST10.f_out(:,1)-0.05));
+[~,max_cutoff] = min(abs(RBR.ST10.f_out(:,1)-0.2));
+
+lambdaF_lv=3.14;
+lambdaF_le_rbr = interp1(AQP11266.time_15min,lambdaF_le,RBR.ST2.time_wave);
+ aux_frequencies = RBR.ST2.f (min_cutoff:max_cutoff,1);
+alphaj=61.2.*aux_frequencies.^0.005573-59.88; 
+
+flag_time1 = RBR.ST2.time_wave > 737500.865973262 & RBR.ST2.time_wave < 737502.278119836;
+flag_time2 = RBR.ST2.time_wave > 737506.125001883 & RBR.ST2.time_wave < 737508.511042647;
+flag_time3 = RBR.ST2.time_wave > 737511.676198762 & RBR.ST2.time_wave < 737513.307471529;
+flag_time_aux=or(flag_time1,flag_time2);
+flag_time_total=or(flag_time3,flag_time_aux);
+%%
+% alphar=0.6;
+for k=1:9 %for each instrument
+    STi = sprintf('ST%d',k);
+    STf = sprintf('ST%d',k+1);
+
+    h = (RBR.(STf).meandepth + RBR.(STi).meandepth)./2;
+    
+    ubj_avg = (RBR.(STf).ubj_LWT + RBR.(STi).ubj_LWT)./2;
+    ubr_avg = (RBR.(STf).ubr_LWT + RBR.(STi).ubr_LWT)./2;
+    a = (RBR.(STf).arms + RBR.(STi).arms)./2;
+
+    RBR.(STi).deltaj = -(RBR.(STf).Fj - ((rbr_awac_kr(:,k)' +1).*RBR.(STi).Fj))/RBR.(STi).distance;
+    RBR.(STi).delta = -(RBR.(STf).Fr - ((rbr_awac_kr(:,k)' +1).*RBR.(STi).Fr))/RBR.(STi).distance;
+
+
+    RBR.(STi).s1 = (4.*RBR.(STi).delta)./(lambdaF_lv.*rho.*1.*ubr_avg.^3);
+    RBR.(STi).s2 = (4.*RBR.(STi).delta)./(lambdaF_le_rbr.*rho.*1.*ubr_avg.^3);       
+    RBR.(STi).s3 = (4.*RBR.(STi).delta)./...
+        (lambdaF_lv.*rho.*alphar_interp.*alphaj.^2.*ubr_avg.*ubj_avg.^2);
+    RBR.(STi).s4 = (4.*RBR.(STi).delta)./...
+        (lambdaF_le_rbr.*rho.*alphar_interp.*alphaj.^2.*ubr_avg.*ubj_avg.^2);
+
+end
+%%
+edges=[-0.05:0.07:1.95];
+figure(7)
+s1=subplot(2,2,1)
+hold on
+sce1_alpha1 = (RBR.ST7.s1(flag_time_total)+RBR.ST8.s1(flag_time_total))./2;
+% sce1_alpha1(sce1_alpha1 <-0.5 | sce1_alpha1> 0.4)=nan;
+% h1=histogram(sce1_alpha1,edges,'facecolor','#D0DDD7','edgecolor','#D0DDD7','Normalization', 'probability');
+h1=histogram(sce1_alpha1,'facecolor','#D0DDD7','edgecolor','#D0DDD7','Normalization', 'probability');
+fitdist(sce1_alpha1','normal')
+hold on
+% title('Scenario 1, \mu = 0.29 ± 0.15')
+title('Approach 2-R, $\bar\{tilde{C}}_D = 0.11 \pm 0.1$','interpreter','latex')
+
+box on
+ylabel('Counts')
+xlabel('C_D')
+grid on
+xlim([-0.55 2.3])
+ylim([0 1])
+
+s2=subplot(2,2,2)
+hold on
+sce2_alphainterp = (RBR.ST7.s2(flag_time_total)+RBR.ST8.s2(flag_time_total))'./2;
+% sce2_alphainterp(sce2_alphainterp>0.7)=nan;
+% sce2_alphainterp(sce2_alphainterp>2.36 | sce2_alphainterp<-.06)=nan;
+% histfit(sce2_alphainterp,25)
+histogram(sce2_alphainterp,edges,'facecolor','#AAC0AA', 'edgecolor','#AAC0AA','Normalization', 'probability');
+histogram(sce2_alphainterp,'facecolor','#AAC0AA', 'edgecolor','#AAC0AA','Normalization', 'probability');
+
+fitdist(sce2_alphainterp,'normal')
+% legend('\mu = 1.51')
+% xlim([-5 5])
+% t=title ('Scenario 2, \mu = 0.98 ± 0.50')
+title('Approach 2-F, $\bar{\tilde{C}}_D = 0.26 \pm 0.15$','interpreter','latex')
+% title ('Approach 2-F, \mu = 0.26 ± 0.1')
+
+box on
+ylabel('Counts')
+xlabel('C_D')
+grid on
+xlim([-0.55 2.3])
+ylim([0 1])
+
+s3=subplot(2,2,3)
+hold on
+sce3_fullupright = ((RBR.ST7.s3(:,flag_time_total)+RBR.ST8.s3(:,flag_time_total))'./2); %PAY ATTENTION!
+sce3_fullupright(sce3_fullupright>200 | sce3_fullupright<-200)=nan;
+% histfit(sce3_fullupright,25)
+histogram(sce3_fullupright,edges, 'facecolor','#216869', 'edgecolor','#216869', 'Normalization', 'probability');
+% fitdist(sce3_fullupright,'normal')
+title('Approach 3-R, $\bar{C}_D = 0.51 \pm 0.19$','interpreter','latex')
+box on
+ylabel('Counts')
+xlabel('C_D')
+grid on
+xlim([-0.55 2.3])
+ylim([0 1])
+
+s4=subplot(2,2,4)
+hold on
+sce4_fullupright = ((RBR.ST7.s4(:,flag_time_total)+RBR.ST8.s4(:,flag_time_total))'./2);
+data = sce4_fullupright(~isnan(sce4_fullupright));
+% sce4_fullupright(sce4_fullupright>200 | sce4_fullupright<-200)=nan;
+
+% aux=find(sce3_fullupright
+% histfit(sce3_fullupright,25)
+histogram(sce4_fullupright,edges, 'facecolor','#023047', 'edgecolor','#023047','Normalization', 'probability');
+histogram(data,edges, 'facecolor','#023047', 'edgecolor','#023047','Normalization', 'probability');
+% fitdist(sce4_fullupright,'normal')
+title('Approach 3-F, $\bar{C}_D = 1.37 \pm 0.4$','interpreter','latex')
+box on
+ylabel('Counts')
+xlabel('C_D')
+grid on
+xlim([-0.55 2.3])
+ylim([0 0.1])
+
+% [pdca_s1] = fitdist(sce1_alpha1','rayleigh')
+% pdf_s1 = pdf(pdca_s1,edges);
+% plot(edges, pdf_s1, 'color','#AAC0AA','linewidth',2)
+% 
+% % plot([-3*(edges(2)-edges(1)) edges(1:20)], [0 pdf_s1(1:20)], 'color','#AAC0AA','linewidth',2)
+% hold on
+% 
+% [pdca_s2] = fitdist(sce2_alphainterp,'rayleigh')
+% pdf_s2 = pdf(pdca_s2,edges)
+% plot(edges, pdf_s2, 'color','#023047','linewidth',2)
+% 
+% [pdca_s3] = fitdist(sce3_fullupright,'rayleigh')
+% pdf_s3 = pdf(pdca_s3,edges)
+% plot(edges, pdf_s3, 'color','#216869','linewidth',2)
+% 
+% title ('PDF')
+% xlim([-0.55 2.3])
+% ylim([0 3])
+% grid on
+% legend('S 1','S 2', 'S 3')
+% xlabel('C_D')
+
+%%
+% s1.Position = [0.1300    0.5979    0.3347    0.3269];
+% s2.Position = [0.5703    0.5979    0.3347    0.3269];
+% s3.Position = [0.3550    0.1257    0.3347    0.3269];
+%%
+print(gcf,'C:\Users\Neryneto\OneDrive - UWA\Documents\PhD\chapters\Rottnest\Plots\chapter2\F16_Scenarios','-dtiff','-r900')
+
